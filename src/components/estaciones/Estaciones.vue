@@ -22,7 +22,7 @@
       </v-card-title>
       <v-data-table :headers="headers" :items="estaciones" :search="search">
         <template v-slot:item.detalles="{ item }">
-          <v-btn icon color="red" @click="eliminarEstacion(item.idFirebase)"
+          <v-btn icon color="red" @click="eliminarEstacion(item)"
             ><v-icon small> mdi-delete </v-icon></v-btn
           >
         </template>
@@ -33,9 +33,9 @@
 </template>
 
 <script>
-import { mapState } from "vuex";
+import { mapState, mapActions } from "vuex";
 import NuevaEstacion from "../estaciones/NuevaEstacion";
-import { db } from "../../common/Firebase";
+import { db, storage } from "../../common/Firebase";
 
 export default {
   name: "EstacionesComponent",
@@ -59,14 +59,37 @@ export default {
     };
   },
   methods: {
-    async eliminarEstacion(idFirebase) {
+    ...mapActions(["eliminarEstacionStore"]),
+    async eliminarEstacion(item) {
+      const rutaStorage = item.rutaStorage;
+      const idFirebase = item.idFirebase;
+
+      try {
+        await this.eliminarFoto(rutaStorage);
+        await this.eliminarRegistroFirebase(idFirebase);
+        const index = await this.estaciones.findIndex(
+          (estacion) => estacion.idFirebase == idFirebase
+        );
+        this.eliminarEstacionStore(index);
+        alert("LA ESTACION HA SIDO ELIMINADA CORRECTAMENTE");
+      } catch (error) {
+        console.log(error);
+      }
+    },
+    async eliminarFoto(rutaStorage) {
+      try {
+        await storage.child(rutaStorage).delete();
+      } catch (error) {
+        console.log(error);
+      }
+    },
+    async eliminarRegistroFirebase(idFirebase) {
       try {
         const response = await db
           .collection("estaciones")
           .doc(idFirebase)
           .delete();
         console.log(response);
-        alert("ELIMINADO DE FORMA CORRECTA");
       } catch (error) {
         console.log(error);
         alert("NO SE HA PODIDO ELIMINAR");
