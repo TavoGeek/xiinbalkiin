@@ -22,25 +22,43 @@
       </v-card-title>
       <v-data-table :headers="headers" :items="estaciones" :search="search">
         <template v-slot:item.detalles="{ item }">
+          <!-- Boton de eliminar estacion -->
           <v-btn icon color="red" @click="eliminarEstacion(item)"
             ><v-icon small> mdi-delete </v-icon></v-btn
+          >
+
+          <!-- Boton de editar estacion -->
+          <v-btn icon color="blue" @click="editarEstacion(item)"
+            ><v-icon small> mdi-pencil </v-icon></v-btn
           >
         </template>
       </v-data-table>
     </v-card>
+
     <NuevaEstacion v-if="dialog" :dialog="dialog" @cancel="dialog = false" />
+
+    <EditarEstacion
+      v-if="dialogEdit"
+      :dialogEdit="dialogEdit"
+      :estacion="estacion"
+      @cancel="dialogEdit = false"
+    />
   </v-container>
 </template>
 
 <script>
 import { mapState, mapActions } from "vuex";
-import NuevaEstacion from "../estaciones/NuevaEstacion";
 import { db, storage } from "../../common/Firebase";
+
+// Componentes
+import NuevaEstacion from "../estaciones/NuevaEstacion";
+import EditarEstacion from "../estaciones/EditarEstacion";
 
 export default {
   name: "EstacionesComponent",
   components: {
     NuevaEstacion,
+    EditarEstacion,
   },
   data() {
     return {
@@ -56,25 +74,29 @@ export default {
         { text: "Detalles", value: "detalles" },
       ],
       dialog: false,
+      dialogEdit: false,
+      estacion: {},
     };
   },
   methods: {
-    ...mapActions(["eliminarEstacionStore"]),
+    ...mapActions(["eliminarEstacionStorage"]),
     async eliminarEstacion(item) {
-      const rutaStorage = item.rutaStorage;
-      const idFirebase = item.idFirebase;
+      const { rutaStorage } = item;
+      const { idFirebase } = item;
 
       try {
         await this.eliminarFoto(rutaStorage);
         await this.eliminarRegistroFirebase(idFirebase);
-        const index = await this.estaciones.findIndex(
-          (estacion) => estacion.idFirebase == idFirebase
-        );
-        this.eliminarEstacionStore(index);
-        alert("LA ESTACION HA SIDO ELIMINADA CORRECTAMENTE");
+        const index = await this.buscarEstacion(idFirebase);
+        await this.eliminarEstacionStorage(index);
+        alert("Eliminado de forma correcta");
       } catch (error) {
         console.log(error);
       }
+    },
+    editarEstacion(estacion) {
+      this.estacion = Object.assign({}, estacion);
+      this.dialogEdit = true;
     },
     async eliminarFoto(rutaStorage) {
       try {
@@ -94,6 +116,11 @@ export default {
         console.log(error);
         alert("NO SE HA PODIDO ELIMINAR");
       }
+    },
+    buscarEstacion(idFirebase) {
+      return this.estaciones.findIndex(
+        (estacion) => estacion.idFirebase == idFirebase
+      );
     },
   },
   computed: {
